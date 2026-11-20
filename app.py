@@ -86,8 +86,10 @@ class Desk:
         self.transport = transport
         self.lock = threading.RLock()
         self.work_lock = threading.Lock()
+        self.draft_lock = threading.Lock()
         self.stop = threading.Event()
         self.wake = threading.Event()
+        self.draft_wake = threading.Event()
         self.check_requested = False
         self.csrf = secrets.token_urlsafe(32)
         self.db = sqlite3.connect(self.directory / "desk.sqlite3", check_same_thread=False)
@@ -110,6 +112,10 @@ class Desk:
             slot_id TEXT PRIMARY KEY, delivered_at TEXT, completed_at TEXT);
           CREATE TABLE IF NOT EXISTS transcripts (
             audio_hash TEXT PRIMARY KEY, text TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS draft_jobs (
+            post_id TEXT PRIMARY KEY, tone TEXT NOT NULL, manual INTEGER NOT NULL,
+            requested_at REAL NOT NULL, state TEXT NOT NULL DEFAULT 'queued',
+            reply TEXT NOT NULL, repurpose TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS activity_tracker (
             id INTEGER PRIMARY KEY CHECK(id=1), handle TEXT NOT NULL DEFAULT '', user_id TEXT,
             start_time TEXT, since_id TEXT, next_token TEXT, newest_id TEXT,
@@ -137,6 +143,10 @@ class Desk:
         default = {"enabled": False, "interval": 60, "topic": "", "voice": "Short, direct and conversational. A real opinion or reaction, not a summary. No inspirational slogans, corporate language or generic praise. Don't force jokes or slang.",
                    "daily_reads": 500, "daily_drafts": 40, "auto_draft": True, "reminders_enabled": True}
         self.db.execute("INSERT OR IGNORE INTO settings VALUES (1, ?)", (json.dumps(default),))
+        # Never silently repeat an AI request interrupted by a server restart.
+        self.db.execute("""UPDATE posts SET status='error',error='Draft interrupted by restart. Previous drafts kept; choose an angle to retry.'
+            WHERE id IN (SELECT post_id FROM draft_jobs WHERE state='writing')""")
+        self.db.execute("DELETE FROM draft_jobs WHERE state='writing'")
         self.db.commit()
         # Keep the user's monitoring choice across restarts; a new desk starts paused.
         self.search_cache = {}
@@ -393,7 +403,8 @@ class Desk:
 
     def snapshot(self):
         return {"settings": self.settings(), "accounts": self.rows("SELECT * FROM accounts ORDER BY handle"),
-                "posts": [{k:v for k,v in p.items() if k != "source_json"} for p in self.rows("SELECT * FROM posts ORDER BY created_at DESC LIMIT 300")],
+                "posts": [{k:v for k,v in p.items() if k != "source_json"} for p in self.rows("""SELECT p.*,j.state AS draft_job,j.tone AS requested_tone
+                    FROM posts p LEFT JOIN draft_jobs j ON j.post_id=p.id ORDER BY p.created_at DESC LIMIT 300""")],
                 "usage": self.usage(), "connections": {"x": bool(self.keys.get("X_BEARER_TOKEN")),
                 "ai": bool(self.keys.get("OPENAI_API_KEY")), "model": self.keys.get("OPENAI_MODEL", "gpt-4.1-mini")},
                 "busy": self.work_lock.locked(), "csrf": self.csrf, "schedule": self.reminder_schedule()}
@@ -495,13 +506,79 @@ class Desk:
         self.execute("INSERT OR REPLACE INTO transcripts VALUES (?,?)", (digest, transcript))
         return transcript
 
-    def generate(self, post_id, tone=None):
+    def queue_draft(self, post_id, tone=None, manual=True):
+        if tone is not None and (not isinstance(tone, str) or tone not in DRAFT_TONES):
+            raise ValueError("Choose Auto, Agreeable, Disagree, Controversial or Provocative.")
+        with self.lock:
+            jobs = self.rows("SELECT * FROM draft_jobs")
+            if not manual and jobs:
+                return None
+            existing = next((j for j in jobs if j["post_id"] == post_id), None)
+            if existing:
+                if manual and not existing["manual"] and existing["state"] == "queued":
+                    post = self.rows("SELECT * FROM posts WHERE id=?", (post_id,))[0]
+                    existing["tone"] = tone if tone is not None else post["draft_tone"]
+                    self.execute("UPDATE draft_jobs SET manual=1,tone=?,reply=?,repurpose=? WHERE post_id=?",
+                                 (existing["tone"], post["reply"], post["repurpose"], post_id))
+                return {"queued": True, "state": existing["state"], "tone": existing["tone"]}
+            if len(jobs) >= 20:
+                raise ValueError("The draft queue is full. Wait for a draft to finish before adding another.")
+            posts = self.rows("SELECT * FROM posts WHERE id=?", (post_id,))
+            if not posts or posts[0]["demo"]:
+                raise ValueError("Choose a live post to generate drafts.")
+            post = posts[0]
+            if not self.keys.get("OPENAI_API_KEY"):
+                raise ValueError("Connect an OpenAI API key in Settings to generate drafts.")
+            if self.usage()["draft_attempts"] >= self.settings()["daily_drafts"]:
+                raise ValueError("Daily AI draft allowance reached. Resets at midnight UTC.")
+            tone = tone if tone is not None else post["draft_tone"]
+            self.execute("INSERT INTO draft_jobs(post_id,tone,manual,requested_at,reply,repurpose) VALUES (?,?,?,?,?,?)",
+                         (post_id, tone, int(manual), time.time(), post["reply"], post["repurpose"]))
+        self.draft_wake.set()
+        return {"queued": True, "state": "queued", "tone": tone}
+
+    def draft_once(self):
+        if not self.draft_lock.acquire(blocking=False):
+            return False
+        try:
+            with self.lock:
+                jobs = self.rows("SELECT * FROM draft_jobs WHERE state='queued' ORDER BY manual DESC,requested_at LIMIT 1")
+                if not jobs:
+                    return False
+                job = jobs[0]
+                posts = self.rows("SELECT * FROM posts WHERE id=?", (job["post_id"],))
+                settings = self.settings()
+                if not posts or (not job["manual"] and (posts[0]["replied_at"] or posts[0]["status"] != "new" or not settings["enabled"] or not settings["auto_draft"])):
+                    self.execute("DELETE FROM draft_jobs WHERE post_id=?", (job["post_id"],))
+                    return True
+                self.execute("UPDATE draft_jobs SET state='writing' WHERE post_id=?", (job["post_id"],))
+            try:
+                self.generate(job["post_id"], job["tone"], expected=(job["reply"], job["repurpose"]))
+            except Exception as exc:
+                message = str(exc) if isinstance(exc, (ValueError, ServiceError)) else "Draft could not finish. Previous drafts kept; choose an angle to retry."
+                self.execute("UPDATE posts SET status=CASE WHEN status='needs_context' THEN status ELSE 'error' END,error=? WHERE id=?", (message, job["post_id"]))
+            finally:
+                self.execute("DELETE FROM draft_jobs WHERE post_id=?", (job["post_id"],))
+            return True
+        finally:
+            self.draft_lock.release()
+
+    def run_drafts(self):
+        while not self.stop.is_set():
+            self.draft_wake.wait(2)
+            self.draft_wake.clear()
+            while not self.stop.is_set() and self.draft_once():
+                pass
+
+    def generate(self, post_id, tone=None, expected=None):
         if tone is not None and (not isinstance(tone, str) or tone not in DRAFT_TONES):
             raise ValueError("Choose Auto, Agreeable, Disagree, Controversial or Provocative.")
         posts = self.rows("SELECT * FROM posts WHERE id=?", (post_id,))
         if not posts:
             raise ValueError("That post is no longer in the inbox.")
         post = posts[0]
+        if expected is not None and (post["reply"], post["repurpose"]) != expected:
+            raise ServiceError("You edited this draft while it was queued. Your edits were kept; choose an angle to retry.")
         tone = tone if tone is not None else post["draft_tone"]
         if post["demo"]:
             raise ValueError("Demo drafts are already supplied. Use a live post for AI generation.")
@@ -621,7 +698,7 @@ class Desk:
                 pending = self.rows("SELECT id FROM posts WHERE status='new' AND demo=0 AND replied_at IS NULL ORDER BY created_at DESC LIMIT 1")
                 if pending and self.usage()["draft_attempts"] < self.settings()["daily_drafts"]:
                     try:
-                        self.generate(pending[0]["id"])
+                        self.queue_draft(pending[0]["id"], manual=force)
                     except (ServiceError, ValueError) as exc:
                         self.execute("UPDATE posts SET status=CASE WHEN status='needs_context' THEN status ELSE 'error' END,error=? WHERE id=?", (str(exc), pending[0]["id"]))
         finally:
@@ -772,12 +849,7 @@ def make_handler(desk):
                 elif path == "/api/reminders/claim":
                     return self.send(200, {"claimed": desk.claim_reminder(body.get("id"))})
                 elif path == "/api/draft":
-                    if not desk.work_lock.acquire(blocking=False):
-                        raise ValueError("The monitor is busy. Try again in a moment.")
-                    try:
-                        desk.generate(str(body.get("id", "")), body.get("tone"))
-                    finally:
-                        desk.work_lock.release()
+                    return self.send(202, desk.queue_draft(str(body.get("id", "")), body.get("tone")))
                 elif path == "/api/posts":
                     pid = str(body.get("id", ""))
                     if not desk.rows("SELECT id FROM posts WHERE id=?", (pid,)):
@@ -818,6 +890,7 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(desk))
     server.daemon_threads = True
     threading.Thread(target=desk.run, daemon=True).start()
+    threading.Thread(target=desk.run_drafts, daemon=True).start()
     print(f"X Draft Desk is ready: http://127.0.0.1:{args.port}", flush=True)
     print("Your monitoring preference is preserved. Press Ctrl+C to stop.", flush=True)
     try:
@@ -827,6 +900,7 @@ def main():
     finally:
         desk.stop.set()
         desk.wake.set()
+        desk.draft_wake.set()
         server.server_close()
 
 

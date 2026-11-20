@@ -212,4 +212,4 @@ A pale toast with dark text appears above the footer; errors use a pale red tint
 
 ### Draft angles
 
-Above the draft editor, a wrapping row of neutral outlined buttons offers Auto, Agreeable, Disagree, Controversial and Provocative. The saved angle uses a light border and `aria-pressed`; each button rewrites both draft types. Helper text states that one AI attempt is used. Buttons retain 44px minimum height and wrap on narrow screens. Failed or skipped generation preserves the previous draft and its selected angle.
+Above the draft editor, a wrapping row of neutral outlined buttons offers Auto, Agreeable, Disagree, Controversial and Provocative. The saved angle uses a light border and `aria-pressed`; each button rewrites both draft types. Helper text states that one AI attempt is used. Buttons retain 44px minimum height and wrap on narrow screens. Queued and writing states appear above the draft; only that post’s rewrite controls are disabled, never every draft during monitoring. Failed or skipped generation preserves the previous draft and its selected angle.

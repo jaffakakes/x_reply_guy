@@ -171,7 +171,7 @@ test("angle selection saves edits then sends the chosen tone for the same post",
   assert.equal(button.disabled,false);
 });
 
-test("angle controls show the saved angle and disable generation while busy", () => {
+test("angle controls remain available during monitoring and disable only their own queued draft", () => {
   const h=harness();
   h.run("state.connections={ai:true};state.busy=false");
   const html=h.run("toneControls({draft_tone:'controversial'})");
@@ -179,7 +179,8 @@ test("angle controls show the saved angle and disable generation while busy", ()
   assert.match(html,/data-tone="agreeable" aria-pressed="false"/);
   assert.match(html,/rewrite Reply and Your take/);
   h.run("state.busy=true");
-  assert.equal((h.run("toneControls({})").match(/ disabled/g)||[]).length,5);
+  assert.equal((h.run("toneControls({})").match(/ disabled/g)||[]).length,0);
+  assert.equal((h.run("toneControls({draft_job:'queued'})").match(/ disabled/g)||[]).length,5);
 });
 
 test("failed rewrite restores the angle button and preserves the current text", async () => {
@@ -189,4 +190,10 @@ test("failed rewrite restores the angle button and preserves the current text", 
   await h.listeners.click({target:{closest:()=>button}});
   assert.equal(button.textContent,'Provocative');
   assert.equal(h.run("currentPost().reply"),'Original edit');
+});
+
+test("draft queue messages replace stale failure messages while a retry runs", () => {
+  const h=harness();
+  assert.match(h.run("draftMessage({draft_job:'queued',status:'error',error:'Old error'})"), /queued.*automatically/);
+  assert.match(h.run("draftMessage({draft_job:'writing',status:'needs_context',error:'Old error'})"), /writing your drafts/);
 });

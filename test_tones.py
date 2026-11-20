@@ -90,7 +90,8 @@ class ToneTests(unittest.TestCase):
         self.addCleanup(server.shutdown)
         req = Request(f'http://127.0.0.1:{server.server_port}/api/draft',data=json.dumps({'id':'101','tone':'provocative'}).encode(),headers={'Content-Type':'application/json','X-Desk-Token':self.desk.csrf})
         with urlopen(req) as result:
-            self.assertEqual(result.status,200)
+            self.assertEqual(result.status,202)
+        self.desk.draft_once()
         self.assertEqual(self.desk.snapshot()['posts'][0]['draft_tone'],'provocative')
 
 

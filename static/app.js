@@ -248,6 +248,8 @@ function render() {
   renderSchedule();
 }
 function draftMessage(post) {
+  if (post.draft_job === "queued") return "Draft queued. It will appear here automatically; monitoring continues.";
+  if (post.draft_job === "writing") return "Reading the source and writing your drafts… Monitoring continues.";
   if (post.status === "needs_context") return post.error || "Draft paused: source context is missing. Check the source and retry.";
   if (post.status === "skipped") return `No draft suggested: ${post.error || "There wasn't enough context for a useful reply."}`;
   if (post.status === "error") return `Draft failed: ${post.error || "Try Generate drafts again."}`;
@@ -267,7 +269,7 @@ const draftAngles = [
 ];
 function toneControls(post) {
   return `<div class="draft-angles" role="group" aria-label="Draft angle" aria-describedby="angle-help">${draftAngles.map(([tone, label, hint]) =>
-    `<button class="angle-button" data-tone="${tone}" aria-pressed="${(post.draft_tone || "auto") === tone}" title="${hint}" ${!state.connections.ai || state.busy ? "disabled" : ""}>${label}</button>`
+    `<button class="angle-button" data-tone="${tone}" aria-pressed="${(post.draft_tone || "auto") === tone}" title="${hint}" ${!state.connections.ai || post.draft_job ? "disabled" : ""}>${label}</button>`
   ).join("")}</div><p id="angle-help" class="angle-help">Choose an angle to rewrite Reply and Your take. Uses one AI attempt.</p>`;
 }
 function renderEditor() {
@@ -281,7 +283,6 @@ function renderEditor() {
     p,
     draftKind,
     state.connections.ai,
-    state.busy,
     draftMessage(p),
   ]);
   if (signature === editorSignature) {
@@ -290,7 +291,7 @@ function renderEditor() {
   }
   editorSignature = signature;
   $("editor").innerHTML =
-    `<div class="source-meta"><strong>@${escape(p.handle)}</strong><a href="${sourceUrl(p)}" target="_blank" rel="noopener noreferrer">${escape(dateLabel(p.created_at))} · View post</a></div><p class="source-text">${escape(p.text)}</p>${draftMessage(p) ? `<p class="editor-note" role="status">${escape(draftMessage(p))}</p>` : ""}${p.context_summary ? `<p class="editor-note">${escape(p.context_summary)}</p>` : ""}<div class="draft-tabs" role="group" aria-label="Draft type"><button class="draft-tab ${draftKind === "reply" ? "active" : ""}" data-kind="reply" aria-pressed="${draftKind === "reply"}">Reply</button><button class="draft-tab ${draftKind === "repurpose" ? "active" : ""}" data-kind="repurpose" aria-pressed="${draftKind === "repurpose"}">Your take</button></div>${toneControls(p)}<label for="draft-text" class="sr-only">Edit your draft</label><textarea id="draft-text" maxlength="2000" placeholder="Add something worth saying…">${escape(p[draftKind])}</textarea><div class="draft-details"><span>${draftKind === "repurpose" ? "Source link included when you open X." : "Review the wording. You publish in X."}</span><span id="character-count"></span></div><div class="editor-actions"><button id="open-composer" class="button">Open in X</button><button id="save-draft" class="button secondary">Save</button><button id="copy-draft" class="text-button">Copy</button><button id="generate-draft" class="text-button" ${!state.connections.ai || state.busy ? "disabled" : ""}>${p.reply || p.repurpose ? "Regenerate both" : "Generate drafts"}</button>${p.detected_reply_id ? `<a class="text-button" href="https://x.com/i/status/${escape(p.detected_reply_id)}" target="_blank" rel="noopener noreferrer">Reply detected on X</a>` : `<button id="mark-replied" class="text-button">${p.replied_at ? "Undo replied" : "Mark replied manually"}</button>`}<button id="archive-draft" class="text-button">${p.status === "archived" ? "Restore" : "Archive"}</button></div>${p.error && p.status === "ready" ? `<p class="editor-note">${escape(p.error)}</p>` : ""}`;
+    `<div class="source-meta"><strong>@${escape(p.handle)}</strong><a href="${sourceUrl(p)}" target="_blank" rel="noopener noreferrer">${escape(dateLabel(p.created_at))} · View post</a></div><p class="source-text">${escape(p.text)}</p>${draftMessage(p) ? `<p class="editor-note" role="status">${escape(draftMessage(p))}</p>` : ""}${p.context_summary ? `<p class="editor-note">${escape(p.context_summary)}</p>` : ""}<div class="draft-tabs" role="group" aria-label="Draft type"><button class="draft-tab ${draftKind === "reply" ? "active" : ""}" data-kind="reply" aria-pressed="${draftKind === "reply"}">Reply</button><button class="draft-tab ${draftKind === "repurpose" ? "active" : ""}" data-kind="repurpose" aria-pressed="${draftKind === "repurpose"}">Your take</button></div>${toneControls(p)}<label for="draft-text" class="sr-only">Edit your draft</label><textarea id="draft-text" maxlength="2000" placeholder="Add something worth saying…">${escape(p[draftKind])}</textarea><div class="draft-details"><span>${draftKind === "repurpose" ? "Source link included when you open X." : "Review the wording. You publish in X."}</span><span id="character-count"></span></div><div class="editor-actions"><button id="open-composer" class="button">Open in X</button><button id="save-draft" class="button secondary">Save</button><button id="copy-draft" class="text-button">Copy</button><button id="generate-draft" class="text-button" ${!state.connections.ai || p.draft_job ? "disabled" : ""}>${p.reply || p.repurpose ? "Regenerate both" : "Generate drafts"}</button>${p.detected_reply_id ? `<a class="text-button" href="https://x.com/i/status/${escape(p.detected_reply_id)}" target="_blank" rel="noopener noreferrer">Reply detected on X</a>` : `<button id="mark-replied" class="text-button">${p.replied_at ? "Undo replied" : "Mark replied manually"}</button>`}<button id="archive-draft" class="text-button">${p.status === "archived" ? "Restore" : "Archive"}</button></div>${p.error && p.status === "ready" ? `<p class="editor-note">${escape(p.error)}</p>` : ""}`;
   updateCount();
 }
 function updateCount() {
@@ -540,7 +541,8 @@ document.addEventListener("click", (event) => {
       const label = button.textContent;
       button.textContent = "Writing…";
       try {
-        await api("/api/draft", { id: postId, tone });
+        const result = await api("/api/draft", { id: postId, tone });
+        toast(result?.state === "writing" ? "This post already has a draft in progress. It will appear automatically." : "Draft queued. It will appear automatically.");
       } finally {
         button.textContent = label;
         editorSignature = "";
