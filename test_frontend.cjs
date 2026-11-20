@@ -155,3 +155,38 @@ test("notification checks stop when the daily goal is met", async () => {
   await h.run("maybeNotify()");
   assert.equal(h.run("lastInAppReminder"), "");
 });
+
+test("angle selection saves edits then sends the chosen tone for the same post", async () => {
+  const h=harness();
+  const calls=[];
+  h.context.send=async (path,body)=>calls.push({path,body});
+  h.run("api=send");
+  const button={dataset:{tone:'disagree'},disabled:false,textContent:'Disagree'};
+  await h.listeners.click({target:{closest:()=>button}});
+  assert.deepEqual(calls.map(c=>c.path),['/api/posts','/api/draft']);
+  assert.equal(calls[0].body.reply,'Original edit');
+  assert.equal(calls[1].body.id,'live-1');
+  assert.equal(calls[1].body.tone,'disagree');
+  assert.equal(button.textContent,'Disagree');
+  assert.equal(button.disabled,false);
+});
+
+test("angle controls show the saved angle and disable generation while busy", () => {
+  const h=harness();
+  h.run("state.connections={ai:true};state.busy=false");
+  const html=h.run("toneControls({draft_tone:'controversial'})");
+  assert.match(html,/data-tone="controversial" aria-pressed="true"/);
+  assert.match(html,/data-tone="agreeable" aria-pressed="false"/);
+  assert.match(html,/rewrite Reply and Your take/);
+  h.run("state.busy=true");
+  assert.equal((h.run("toneControls({})").match(/ disabled/g)||[]).length,5);
+});
+
+test("failed rewrite restores the angle button and preserves the current text", async () => {
+  const h=harness();
+  h.run("dirty=false;api=async()=>{throw Error('Unavailable')}");
+  const button={dataset:{tone:'provocative'},disabled:false,textContent:'Provocative'};
+  await h.listeners.click({target:{closest:()=>button}});
+  assert.equal(button.textContent,'Provocative');
+  assert.equal(h.run("currentPost().reply"),'Original edit');
+});

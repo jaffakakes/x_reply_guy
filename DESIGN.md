@@ -209,3 +209,7 @@ A pale toast with dark text appears above the footer; errors use a pale red tint
 - Don't restore the obsolete green-and-ivory palette, serif headings, or sidebar layout.
 - Don't introduce decorative imagery, hero copy, or card grids into the monitoring field.
 - Don't imply that opening X confirms publication or that monitoring continues when the server is unavailable.
+
+### Draft angles
+
+Above the draft editor, a wrapping row of neutral outlined buttons offers Auto, Agreeable, Disagree, Controversial and Provocative. The saved angle uses a light border and `aria-pressed`; each button rewrites both draft types. Helper text states that one AI attempt is used. Buttons retain 44px minimum height and wrap on narrow screens. Failed or skipped generation preserves the previous draft and its selected angle.

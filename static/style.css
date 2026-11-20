@@ -420,6 +420,33 @@ main {
   color: white;
   border-bottom-color: white;
 }
+.draft-angles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.angle-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+}
+.angle-button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.angle-button[aria-pressed="true"] {
+  border-color: var(--text);
+  color: var(--text);
+}
+.angle-help {
+  margin: 10px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .editor label {
   font-size: 14px;
   font-weight: 400;

@@ -20,6 +20,13 @@ from post_context import POST_PARAMS, build_context, image_url, post_text
 from video_context import read_video, request_transcription, TRANSCRIBE_MODEL
 
 ROOT = Path(__file__).resolve().parent
+DRAFT_TONES = {
+    "auto": "Choose the most fitting stance for this specific post. Do not default to agreement; vary your angle when the evidence supports it.",
+    "agreeable": "Agree with the author's central point and add one specific reason, consequence or useful extension. No generic praise or simply repeating their point.",
+    "disagree": "Push back on a specific claim or assumption with a fair counterargument or overlooked tradeoff. Challenge the idea, not the person. Do not invent an objection if the evidence does not support one.",
+    "controversial": "Offer a defensible, less popular position or uncomfortable tradeoff that challenges the obvious consensus. Make a substantive argument someone could reasonably debate, not shock for its own sake.",
+    "provocative": "Make one sharp, thought-provoking observation about the stakes or implications. Be blunt and memorable; a pointed question is fine if it is genuinely unanswered. Avoid empty bait, personal insults and invented accusations.",
+}
 
 
 def now():
@@ -122,7 +129,7 @@ class Desk:
             self.db.execute("ALTER TABLE posts ADD COLUMN replied_at TEXT")
         if "detected_reply_id" not in {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}:
             self.db.execute("ALTER TABLE posts ADD COLUMN detected_reply_id TEXT")
-        for name, definition in (("source_json", "TEXT"), ("context_summary", "TEXT NOT NULL DEFAULT ''")):
+        for name, definition in (("source_json", "TEXT"), ("context_summary", "TEXT NOT NULL DEFAULT ''"), ("draft_tone", "TEXT NOT NULL DEFAULT 'auto'")):
             if name not in {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}:
                 self.db.execute(f"ALTER TABLE posts ADD COLUMN {name} {definition}")
         if "profile_image_url" not in {r[1] for r in self.db.execute("PRAGMA table_info(accounts)")}:
@@ -488,11 +495,14 @@ class Desk:
         self.execute("INSERT OR REPLACE INTO transcripts VALUES (?,?)", (digest, transcript))
         return transcript
 
-    def generate(self, post_id):
+    def generate(self, post_id, tone=None):
+        if tone is not None and (not isinstance(tone, str) or tone not in DRAFT_TONES):
+            raise ValueError("Choose Auto, Agreeable, Disagree, Controversial or Provocative.")
         posts = self.rows("SELECT * FROM posts WHERE id=?", (post_id,))
         if not posts:
             raise ValueError("That post is no longer in the inbox.")
         post = posts[0]
+        tone = tone if tone is not None else post["draft_tone"]
         if post["demo"]:
             raise ValueError("Demo drafts are already supplied. Use a live post for AI generation.")
         if not self.keys.get("OPENAI_API_KEY"):
@@ -555,13 +565,18 @@ class Desk:
             "Do not invent facts, numbers, personal experience, endorsements or claims of having read linked material. "
             "If supplied images are unreadable, the page is a paywall/login/challenge, essential context is still missing, the post is unrelated to the topic, or no grounded reply is possible, set skip=true and explain in reason; return empty drafts. "
             "Otherwise skip=false, with a brief editorial note in reason. No generic flattery. "
-            f"User's topic: {settings['topic'] or 'No topic filter'}. User's voice: {settings['voice']}"
+            f"User's topic: {settings['topic'] or 'No topic filter'}. User's voice: {settings['voice']}. "
+            f"Selected angle for BOTH drafts: {tone}. {DRAFT_TONES[tone]} "
+            "The selected angle controls your stance; the user's voice controls how you phrase it. "
+            "A stronger opinion must not become a stronger factual claim than the evidence supports. Never deny established facts just to sound contrary. "
+            "Previous drafts are supplied only to help you avoid repetition. Write a fresh angle, not the same sentence with stronger adjectives. "
+            "If this angle cannot produce a grounded reply, skip and explain why."
         )
         schema = {"type": "object", "properties": {"reply": {"type": "string"}, "repurpose": {"type": "string"},
                   "skip": {"type": "boolean"}, "reason": {"type": "string"}}, "required": ["reply", "repurpose", "skip", "reason"], "additionalProperties": False}
         result = self.transport("https://api.openai.com/v1/responses", self.keys["OPENAI_API_KEY"], {
             "model": self.keys.get("OPENAI_MODEL", "gpt-4.1-mini"), "store": False,
-            "instructions": instructions, "input": [{"role":"user", "content":[{"type":"input_text", "text":json.dumps({"source_author":post["handle"], **context})}, *images]}],
+            "instructions": instructions, "input": [{"role":"user", "content":[{"type":"input_text", "text":json.dumps({"source_author":post["handle"], "previous_drafts":{"reply":post["reply"], "repurpose":post["repurpose"]}, **context})}, *images]}],
             "max_output_tokens": 900, "text": {"format": {"type": "json_schema", "name": "drafts", "strict": True, "schema": schema}}})
         if result.get("status") != "completed":
             raise ServiceError("AI generation was incomplete. Retry or write your own draft.")
@@ -576,8 +591,13 @@ class Desk:
                 raise ValueError()
         except (ValueError, TypeError):
             raise ServiceError("AI did not return usable drafts. Retry or write your own.") from None
-        changed = self.execute("UPDATE posts SET reply=?,repurpose=?,status=?,error=? WHERE id=? AND reply=? AND repurpose=?",
-                     (draft["reply"], draft["repurpose"], "skipped" if draft["skip"] else "ready", draft["reason"], post_id, post["reply"], post["repurpose"]))
+        if draft["skip"]:
+            draft["reply"], draft["repurpose"] = post["reply"], post["repurpose"]
+            tone = post["draft_tone"]
+            if post["reply"] or post["repurpose"]:
+                draft["reason"] += " Previous drafts kept."
+        changed = self.execute("UPDATE posts SET reply=?,repurpose=?,draft_tone=?,status=?,error=? WHERE id=? AND reply=? AND repurpose=?",
+                     (draft["reply"], draft["repurpose"], tone, "skipped" if draft["skip"] else "ready", draft["reason"], post_id, post["reply"], post["repurpose"]))
         if not changed:
             raise ServiceError("You edited this draft while it was being generated. Your edits were kept.")
 
@@ -755,7 +775,7 @@ def make_handler(desk):
                     if not desk.work_lock.acquire(blocking=False):
                         raise ValueError("The monitor is busy. Try again in a moment.")
                     try:
-                        desk.generate(str(body.get("id", "")))
+                        desk.generate(str(body.get("id", "")), body.get("tone"))
                     finally:
                         desk.work_lock.release()
                 elif path == "/api/posts":
