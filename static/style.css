@@ -556,6 +556,11 @@ main {
   justify-content: flex-end;
   min-width: 120px;
 }
+.keys-toggle {
+  white-space: nowrap;
+  min-height: 44px;
+  padding: 8px;
+}
 .panel {
   max-width: 920px;
   margin: 35px auto 20px;

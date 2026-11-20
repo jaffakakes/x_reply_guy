@@ -181,7 +181,7 @@ Fields use dark surfaces, restrained borders, visible labels or accessible hidde
 
 ### Navigation and Footer
 
-The watched-account strip provides source access. The fixed footer exposes monitoring on the left, the 33-reminder schedule in the center, and notification/settings icon actions on the right. A due reminder adds a pale confirmation action. Monitoring labels and dots distinguish running, paused, offline, and attention states. Settings remain hidden until requested and open within this page.
+The watched-account strip provides source access. The fixed footer exposes monitoring on the left, the 33-reminder schedule in the center, and a notification icon and a labelled API keys action opening settings on the right. A due reminder adds a pale confirmation action. Monitoring labels and dots distinguish running, paused, offline, and attention states. Settings remain hidden until requested and open within this page.
 
 ### Monitoring State
 

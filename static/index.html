@@ -87,7 +87,8 @@
         </div>
         <div class="settings-columns">
           <form id="keys-form">
-            <h2>Connections</h2>
+            <h2>Your API keys</h2>
+            <p class="hint">Use your own accounts: X reads posts; OpenAI writes drafts and reads media. API usage is billed to you.</p>
             <p class="hint" id="connection-status"></p>
             <label for="x-key">X bearer token</label
             ><input
@@ -95,34 +96,39 @@
               name="X_BEARER_TOKEN"
               type="password"
               autocomplete="new-password"
-              placeholder="Leave blank to keep saved token"
+              spellcheck="false"
+              autocapitalize="none"
+              placeholder="Paste your X bearer token"
             /><label for="ai-key">OpenAI API key</label
             ><input
               id="ai-key"
               name="OPENAI_API_KEY"
               type="password"
               autocomplete="new-password"
-              placeholder="Leave blank to keep saved key"
+              spellcheck="false"
+              autocapitalize="none"
+              placeholder="Paste your OpenAI API key"
             /><label for="model">AI model</label
             ><input id="model" name="OPENAI_MODEL" required /><button
               class="button"
               type="submit"
             >
-              Save connections
+              Save API keys
             </button>
+            <p class="hint">Saved on the computer running this copy of the app. Saved keys stay hidden; leave a field blank to keep its key. Keys are checked when first used.</p>
             <p class="hint">
               <a
                 href="https://console.x.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                >X console</a
+                >Get an X token</a
               >
               ·
               <a
                 href="https://platform.openai.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
-                >OpenAI keys</a
+                >Get an OpenAI key</a
               >
             </p>
           </form>
@@ -243,16 +249,12 @@
           </svg></button
         ><button
           id="settings-toggle"
-          class="icon-button"
-          aria-label="Settings"
+          class="text-button keys-toggle"
+          aria-label="API keys and settings"
           aria-expanded="false"
           aria-controls="settings-panel"
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 7h16M4 17h16" />
-            <circle cx="9" cy="7" r="2.5" />
-            <circle cx="15" cy="17" r="2.5" />
-          </svg>
+          API keys
         </button>
       </div>
     </footer>

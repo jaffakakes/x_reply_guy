@@ -7,7 +7,7 @@ X Draft Desk is a single-page black web app for watching X accounts, writing rep
 Requires Python 3.11+. No Python packages to install. Video context also requires FFmpeg/ffprobe (on macOS, use `brew install ffmpeg`).
 
 1. Double-click `Start Draft Desk.command` (or run `python3 app.py`).
-2. Open http://127.0.0.1:8765.
+2. Open http://127.0.0.1:8765. Click **API keys** in the footer, paste your own **X bearer token** and **OpenAI API key**, then click **Save API keys**. Links in the form take you to each provider's key page. No `.env` editing is needed. Each person runs their own copy and pays for their own API usage.
 3. For remote access, double-click `Start Ngrok.command` (or run `python3 tunnel.py`). Ngrok must be installed and configured with your account.
 4. Open the HTTPS URL printed by the tunnel. Sign in with the credentials in `data/ngrok-login.txt`. The same login protects localhost while the tunnel is active. Keep this file private.
 
@@ -18,7 +18,7 @@ Keep both processes running and your Mac awake. Ctrl+C stops each process. Monit
 - The top bar holds your watchlist. Click **+**, search an exact **@username**, confirm the profile photo/name/bio, then **Watch**. Search also offers a link to the full X profile. Photos fall back to initials if unavailable. Up to 20 accounts are supported. This does not follow them on X.
 - When you add an account, monitoring first fetches its latest existing original post, then checks new posts. Existing watched accounts receive the same one-time latest-post lookup on upgrade. Replies/reposts are excluded. The empty inbox says **Monitoring posts…** while monitoring is healthy.
 - Review and edit **Reply** or **Your take**, then open the X composer to publish yourself. Replies aim for one short, conversational reaction (usually 5–18 words), with an actual opinion or angle rather than a summary of the source. Context analysis stays behind the scenes. Your custom writing voice still applies. Commentary includes the source URL. After publishing a reply, click **Mark replied** to remove its source post from the reply queue. This is a local acknowledgement; the app cannot detect replies sent directly on X. **Replied & archived** in settings lets you view completed posts and undo the reply mark. Saving or regenerating a draft does not undo that mark. Archive other finished drafts. No sample posts appear in the interface.
-- Open settings with the sliders icon. Save X/OpenAI credentials there, never in chat. Keys live in an owner-readable `.env`; environment variables override it at startup. Saved credentials are verified when their provider is first used.
+- Open settings with **API keys** in the footer. Saved keys remain hidden; leaving a field blank keeps its saved value. Keys live in an owner-readable `.env` on the computer running this copy and are excluded from Git. Environment variables override them at startup. Saved credentials are verified when their provider is first used. This is a single-user app: sharing its hosted login shares that copy's settings, keys and usage, rather than creating a separate account.
 
 ## Browser reminders
 

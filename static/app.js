@@ -180,7 +180,7 @@ function render() {
     title = "No archived posts.";
   } else if (!c.x) {
     title = "Connect X to start.";
-    hint = "Add your API token in Settings.";
+    hint = "Choose API keys below to add your X token.";
   } else if (!accounts.length) {
     title = "Who are you watching?";
     hint = "Use the + above to find an account.";
@@ -221,6 +221,8 @@ function render() {
   );
   $("connection-status").textContent =
     `${c.x ? "X token saved" : "X not connected"} · ${c.ai ? "AI key saved" : "AI not connected"}`;
+  $("x-key").placeholder = c.x ? "Leave blank to keep saved token" : "Paste your X bearer token";
+  $("ai-key").placeholder = c.ai ? "Leave blank to keep saved key" : "Paste your OpenAI API key";
   $("usage-summary").textContent =
     `${state.usage.posts_read} post reads · ${state.usage.draft_attempts}/${s.daily_drafts} draft attempts · ${state.usage.transcription_attempts || 0}/${s.daily_drafts} audio transcriptions today (UTC)`;
   $("check-now").disabled = state.busy || !accounts.length || !c.x;
@@ -609,7 +611,7 @@ $("keys-form").addEventListener("submit", (event) => {
     $("x-key").value = "";
     $("ai-key").value = "";
     keysDirty = false;
-    toast("Connections saved.");
+    toast("API keys saved. They'll be checked when first used.");
   });
 });
 $("settings-form").addEventListener("submit", (event) => {

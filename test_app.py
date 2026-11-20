@@ -185,6 +185,20 @@ class DeskTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.desk.save_keys({"X_BEARER_TOKEN": "token\nINJECT=value"})
 
+    def test_own_copy_keys_survive_restart_and_blank_fields_preserve_them(self):
+        self.desk.keys = {}
+        self.desk.save_keys({"X_BEARER_TOKEN": " own-x-token ", "OPENAI_API_KEY": " own-ai-key "})
+        self.desk.save_keys({"X_BEARER_TOKEN": "", "OPENAI_API_KEY": "", "OPENAI_MODEL": "gpt-4.1-mini"})
+        reopened = Desk(self.desk.directory, self.desk.env_path, self.transport)
+        self.addCleanup(reopened.db.close)
+        self.assertEqual(reopened.keys["X_BEARER_TOKEN"], "own-x-token")
+        self.assertEqual(reopened.keys["OPENAI_API_KEY"], "own-ai-key")
+        state = reopened.snapshot()
+        self.assertTrue(state["connections"]["x"] and state["connections"]["ai"])
+        for secret in ("own-x-token", "own-ai-key"):
+            self.assertNotIn(secret, json.dumps(state))
+        self.assertEqual(self.requests, [])
+
     def test_http_blocks_cross_origin_writes_and_secret_paths(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.desk))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
