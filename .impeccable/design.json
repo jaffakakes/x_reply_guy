@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T16:42:29.173990+00:00",
+  "title": "Design System: X Draft Desk",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Black Field",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Near-Black Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised Charcoal",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "text": {
+        "role": "primary",
+        "displayName": "Soft White",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Quiet Gray",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Charcoal Divider",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "green": {
+        "role": "status",
+        "displayName": "Running Green",
+        "tonalRamp": [
+          "oklch(15.00% 0.10252 151.27)",
+          "oklch(26.43% 0.10252 151.27)",
+          "oklch(37.86% 0.10252 151.27)",
+          "oklch(49.29% 0.10252 151.27)",
+          "oklch(60.71% 0.10252 151.27)",
+          "oklch(72.14% 0.10252 151.27)",
+          "oklch(83.57% 0.10252 151.27)",
+          "oklch(95.00% 0.10252 151.27)"
+        ]
+      },
+      "error": {
+        "role": "status",
+        "displayName": "Error Coral",
+        "tonalRamp": [
+          "oklch(15.00% 0.09870 23.99)",
+          "oklch(26.43% 0.09870 23.99)",
+          "oklch(37.86% 0.09870 23.99)",
+          "oklch(49.29% 0.09870 23.99)",
+          "oklch(60.71% 0.09870 23.99)",
+          "oklch(72.14% 0.09870 23.99)",
+          "oklch(83.57% 0.09870 23.99)",
+          "oklch(95.00% 0.09870 23.99)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Bright White",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "button-ink": {
+        "role": "neutral",
+        "displayName": "Button Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "control-hover": {
+        "role": "neutral",
+        "displayName": "Hover Charcoal",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus Silver",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "attention": {
+        "role": "status",
+        "displayName": "Attention Amber",
+        "tonalRamp": [
+          "oklch(15.00% 0.09281 60.51)",
+          "oklch(26.43% 0.09281 60.51)",
+          "oklch(37.86% 0.09281 60.51)",
+          "oklch(49.29% 0.09281 60.51)",
+          "oklch(60.71% 0.09281 60.51)",
+          "oklch(72.14% 0.09281 60.51)",
+          "oklch(83.57% 0.09281 60.51)",
+          "oklch(95.00% 0.09281 60.51)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Interface title",
+        "purpose": "Inbox and settings headings."
+      },
+      "status": {
+        "displayName": "Monitoring message",
+        "purpose": "Quiet centered status; 19px on mobile."
+      },
+      "body": {
+        "displayName": "Working UI",
+        "purpose": "Inter when installed, otherwise the platform sans-serif fallback."
+      }
+    },
+    "shadows": [
+      {
+        "name": "mobile-search",
+        "value": "0 5px 20px #0009",
+        "purpose": "Expanded search overlay on narrow screens."
+      },
+      {
+        "name": "toast",
+        "value": "0 8px 24px #0008",
+        "purpose": "Temporary feedback above the footer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "search-reveal",
+        "value": "0.2s ease-out",
+        "purpose": "Plus rotation and clipped search reveal; only without reduced motion."
+      },
+      {
+        "name": "listening",
+        "value": "1.8s ease-in-out infinite",
+        "purpose": "Three status bars staggered by .2s, only while active and without reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-max",
+        "value": "800px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Save preferences",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "A primary working action.",
+      "html": "<button class=\"ds-primary\">Save preferences</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 18px;border:1px solid transparent;border-radius:8px;background:var(--text,#ededed);color:#0a0a0a;font:500 14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;cursor:pointer}.ds-primary:hover{background:white}.ds-primary:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}.ds-primary:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Save draft",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A secondary working action.",
+      "html": "<button class=\"ds-secondary\">Save draft</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 18px;border:1px solid #404040;border-radius:8px;background:transparent;color:var(--text,#ededed);font:500 14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;cursor:pointer}.ds-secondary:hover{background:#1b1b1b}.ds-secondary:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}.ds-secondary:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Text action",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Quiet auxiliary action.",
+      "html": "<button class=\"ds-text\">Archive</button>",
+      "css": ".ds-text{background:none;border:0;color:var(--muted,#969696);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;padding:8px 0;cursor:pointer}.ds-text:hover{color:white}.ds-text:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
+    },
+    {
+      "name": "Icon action",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Top-strip add action and footer utilities.",
+      "html": "<button class=\"ds-icon\" aria-label=\"Add someone to watch\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg></button>",
+      "css": ".ds-icon{display:inline-flex;align-items:center;justify-content:center;width:40px;min-height:40px;padding:9px;border:0;border-radius:8px;background:transparent;color:var(--muted,#969696);cursor:pointer}.ds-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.ds-icon:hover{background:#1b1b1b;color:white}.ds-icon:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Labelled dark field for settings.",
+      "html": "<label class=\"ds-label\" for=\"ds-topic\">Topic</label><input class=\"ds-field\" id=\"ds-topic\" placeholder=\"What do you post about?\">",
+      "css": ".ds-label{display:block;margin:0 0 7px;color:var(--text,#ededed);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif}.ds-field{width:100%;min-height:43px;padding:11px 12px;border:1px solid #383838;border-radius:8px;background:var(--surface,#111);color:var(--text,#ededed);font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;caret-color:white}.ds-field::placeholder{color:#919191}.ds-field:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
+    },
+    {
+      "name": "Account chip",
+      "kind": "chip",
+      "refersTo": "watch-chip",
+      "description": "Initials, watched handle, and a separate remove action.",
+      "html": "<div class=\"ds-chip\"><a href=\"https://x.com/example\"><span class=\"ds-avatar\" aria-hidden=\"true\">EX</span><span>@example</span></a><button aria-label=\"Stop watching @example\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m6 6 12 12M6 18 18 6\"/></svg></button></div>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line,#282828);border-radius:24px;padding:5px 8px 5px 6px;background:var(--surface,#111);color:var(--text,#ededed);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif}.ds-chip a{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}.ds-avatar{display:grid;place-items:center;width:28px;height:28px;background:#282828;color:#cfcfcf;border-radius:50%;font-size:12px;font-weight:500}.ds-chip button{display:grid;place-items:center;width:24px;min-height:28px;padding:4px;border:0;border-radius:8px;background:transparent;color:#909090;cursor:pointer}.ds-chip svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;width:14px;height:14px}.ds-chip button:hover{background:#1b1b1b;color:white}.ds-chip button:focus-visible,.ds-chip a:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
+    },
+    {
+      "name": "Search result",
+      "kind": "card",
+      "refersTo": "search-result",
+      "description": "A temporary result surface below exact-handle search.",
+      "html": "<div class=\"ds-result\"><strong>Account name</strong><p>@example</p><p class=\"ds-hint\">New original posts will appear here.</p></div>",
+      "css": ".ds-result{width:330px;max-width:calc(100vw - 32px);padding:18px;background:var(--raised,#191919);border:1px solid #363636;border-radius:12px;color:var(--text,#ededed);font:14px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif}.ds-result p{margin:0;color:var(--muted,#969696)}.ds-result .ds-hint{margin-top:12px;font-size:13px;line-height:1.6}"
+    },
+    {
+      "name": "Footer navigation",
+      "kind": "nav",
+      "refersTo": "footer",
+      "description": "Persistent monitoring and reminder access.",
+      "html": "<nav class=\"ds-footer\" aria-label=\"Desk controls\"><button class=\"ds-monitor\"><span></span>Monitoring</button><button>33 reminders \u00b7 10:00\u201300:00</button></nav>",
+      "css": ".ds-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:76px;padding:14px 36px;border-top:1px solid var(--line,#282828);background:var(--bg,#080808)}.ds-footer button{display:flex;align-items:center;gap:9px;background:none;border:0;color:var(--muted,#969696);font:13px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;padding:10px 0;cursor:pointer;font-variant-numeric:tabular-nums}.ds-monitor span{width:6px;height:6px;border-radius:50%;background:var(--green,#92d8a3)}.ds-footer button:hover{color:white}.ds-footer button:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Monitoring Desk",
+    "overview": "A quiet black workspace for watching accounts and responding when a post arrives. Neutral surfaces, compact sans-serif controls, and generous unoccupied space keep monitoring calm and useful. Color appears only when it communicates operational state.\n\nThis system records the user-approved black one-page direction and the implemented interface. It supersedes the earlier green-and-ivory editorial direction. The desktop and mobile empty states are evidenced by the current review captures; there is no decorative imagery or visual-comp dependency.",
+    "keyCharacteristics": [
+      "Neutral black field with restrained gray hierarchy.",
+      "Account chips above the workspace; persistent status and actions below.",
+      "Quiet centered monitoring state and same-page settings revealed on demand.",
+      "Flat surfaces, thin separators, and explicit operational status."
+    ],
+    "rules": [
+      {
+        "name": "The Neutral Field Rule",
+        "body": "Keep navigation and primary actions neutral; reserve chromatic color for operational status.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet State Rule",
+        "body": "Let empty space carry the monitoring state; add explanatory text only when the user needs to act.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Workspace Rule",
+        "body": "Use thin dividers and tonal surfaces for structure; reserve shadows for temporary overlays and feedback.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the main field quiet while monitoring has no posts to show.",
+      "Do use color sparingly for status and keep its meaning in adjacent text.",
+      "Do preserve keyboard focus, accessible icon labels, and truthful paused, disconnected, and error states.",
+      "Do retain horizontal account scrolling and footer safe-area spacing on narrow screens."
+    ],
+    "donts": [
+      "Don't restore the obsolete green-and-ivory palette, serif headings, or sidebar layout.",
+      "Don't introduce decorative imagery, hero copy, or card grids into the monitoring field.",
+      "Don't imply that opening X confirms publication or that monitoring continues when the server is unavailable."
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+data/
+*.sqlite3*
+*.log
+__pycache__/
+.impeccable/review/
+.DS_Store

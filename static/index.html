@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#080808" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Watch people. Find your next post." />
+    <title>Draft Desk</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to posts</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Draft Desk home"
+        ><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 5h14v11H11l-6 4V5Z" />
+          <path d="M9 9h6M9 12h4" /></svg
+        ><span>desk</span></a
+      >
+      <nav
+        id="watchlist"
+        class="watchlist"
+        aria-label="People you are watching"
+      ></nav>
+      <div class="add-account" id="add-account">
+        <form id="search-form" hidden>
+          <label class="sr-only" for="account-search"
+            >Search by exact X username</label
+          >
+          <input
+            id="account-search"
+            name="handle"
+            placeholder="Search @username"
+            maxlength="16"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="icon-button" type="submit" aria-label="Search X">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4 4" />
+            </svg>
+          </button>
+        </form>
+        <button
+          id="add-toggle"
+          class="icon-button add-toggle"
+          aria-label="Add someone to watch"
+          aria-expanded="false"
+          aria-controls="search-form"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+        <div
+          id="search-result"
+          class="search-result"
+          role="status"
+          hidden
+        ></div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section
+        id="settings-panel"
+        class="panel"
+        aria-labelledby="settings-title"
+        hidden
+      >
+        <div class="panel-heading">
+          <h1 id="settings-title">Settings</h1>
+          <button
+            id="close-settings"
+            class="icon-button"
+            aria-label="Close settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 6 12 12M6 18 18 6" />
+            </svg>
+          </button>
+        </div>
+        <div class="settings-columns">
+          <form id="keys-form">
+            <h2>Connections</h2>
+            <p class="hint" id="connection-status"></p>
+            <label for="x-key">X bearer token</label
+            ><input
+              id="x-key"
+              name="X_BEARER_TOKEN"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Leave blank to keep saved token"
+            /><label for="ai-key">OpenAI API key</label
+            ><input
+              id="ai-key"
+              name="OPENAI_API_KEY"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Leave blank to keep saved key"
+            /><label for="model">AI model</label
+            ><input id="model" name="OPENAI_MODEL" required /><button
+              class="button"
+              type="submit"
+            >
+              Save connections
+            </button>
+            <p class="hint">
+              <a
+                href="https://console.x.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >X console</a
+              >
+              ·
+              <a
+                href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                >OpenAI keys</a
+              >
+            </p>
+          </form>
+          <form id="settings-form">
+            <h2>Your writing</h2>
+            <label for="topic">Topic</label
+            ><input
+              id="topic"
+              maxlength="1000"
+              placeholder="What do you post about?"
+            /><label for="voice">Voice</label
+            ><textarea id="voice" rows="3" maxlength="1000"></textarea
+            ><label class="checkbox"
+              ><input id="auto-draft" type="checkbox" />Draft new posts
+              automatically</label
+            >
+            <div class="form-grid">
+              <div>
+                <label for="reads">Daily read limit</label
+                ><input id="reads" type="number" min="5" max="10000" required />
+              </div>
+              <div>
+                <label for="drafts">Daily AI attempts</label
+                ><input id="drafts" type="number" min="1" max="500" required />
+              </div>
+            </div>
+            <label for="interval">Check every (seconds)</label
+            ><input
+              id="interval"
+              type="number"
+              min="60"
+              max="3600"
+              required
+            /><button class="button" type="submit">Save preferences</button>
+          </form>
+        </div>
+        <div class="reminder-settings">
+          <h2>33 reminders. Your daily rhythm.</h2>
+          <p>10:00–00:00 · Europe/London · about every 26 minutes.</p>
+          <div class="settings-actions">
+            <button id="enable-notifications" class="button">
+              Enable browser notifications</button
+            ><button id="toggle-reminders" class="button secondary">
+              Pause reminders
+            </button>
+          </div>
+          <p id="notification-status" class="hint"></p>
+          <p class="hint">
+            Keep this app open and your Mac awake for reminders. The server
+            keeps monitoring even if you close the page. An ngrok link works
+            only while your Mac and tunnel are running.
+          </p>
+          <details>
+            <summary>See all 33 times</summary>
+            <ol id="schedule-times" class="schedule-times"></ol>
+          </details>
+        </div>
+        <div class="panel-footer">
+          <span id="usage-summary"></span
+          ><button id="view-archive" class="text-button">Replied &amp; archived posts</button
+          ><button id="check-now" class="text-button">Check now</button>
+        </div>
+        <div id="account-errors" class="account-errors" role="status"></div>
+      </section>
+
+      <section id="empty-state" class="empty-state" aria-live="polite">
+        <div class="listening-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <h1 id="empty-title">Connecting…</h1>
+        <p id="empty-hint" hidden></p>
+        <button id="return-inbox" class="text-button" hidden>
+          Back to inbox
+        </button>
+      </section>
+      <section id="inbox" class="inbox" hidden aria-label="Posts to review">
+        <div class="inbox-heading">
+          <h1>Something to say.</h1>
+          <button id="archive-filter" class="text-button" aria-pressed="false">
+            Replied &amp; archived
+          </button>
+        </div>
+        <div id="post-list" class="post-list" aria-label="Choose a post"></div>
+        <section id="editor" class="editor" aria-label="Draft editor"></section>
+      </section>
+    </main>
+
+    <footer class="bottom-bar">
+      <button
+        id="toggle-monitor"
+        class="monitor-button"
+        aria-label="Start monitoring"
+      >
+        <span id="monitor-dot" class="status-dot"></span
+        ><span id="monitor-label">Paused</span>
+      </button>
+      <div class="reminder-summary">
+        <button
+          id="schedule-toggle"
+          class="text-button"
+          aria-label="View reminder schedule"
+        >
+          <span id="next-reminder">33 posts · 10:00–00:00</span></button
+        ><button id="mark-posted" class="button small" hidden>
+          I've posted
+        </button>
+      </div>
+      <div class="bottom-actions">
+        <button
+          id="notification-toggle"
+          class="icon-button"
+          aria-label="Enable browser notifications"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"
+            />
+          </svg></button
+        ><button
+          id="settings-toggle"
+          class="icon-button"
+          aria-label="Settings"
+          aria-expanded="false"
+          aria-controls="settings-panel"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M4 17h16" />
+            <circle cx="9" cy="7" r="2.5" />
+            <circle cx="15" cy="17" r="2.5" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
