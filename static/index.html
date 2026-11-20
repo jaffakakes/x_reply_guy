@@ -166,8 +166,20 @@
           </form>
         </div>
         <div class="reminder-settings">
-          <h2>33 reminders. Your daily rhythm.</h2>
-          <p>10:00–00:00 · Europe/London · about every 26 minutes.</p>
+          <h2 id="activity-title" tabindex="-1">Your daily reply goal</h2>
+          <p>Replies count automatically. Nudges only when you're behind, 10:00–00:00 London time.</p>
+          <form id="activity-form">
+            <div class="form-grid">
+              <div><label for="own-handle">Your X username</label><input id="own-handle" name="own_handle" placeholder="@username" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none" /></div>
+              <div><label for="reply-goal">Replies per day</label><input id="reply-goal" name="reply_goal" type="number" min="1" max="500" required value="23" /></div>
+            </div>
+            <button class="button" type="submit">Save reply tracking</button>
+          </form>
+          <p id="reply-progress-label" role="status"></p>
+          <progress id="reply-progress" max="23" value="0" aria-label="Daily reply goal"></progress>
+          <p id="reply-pace" class="hint"></p>
+          <p id="activity-status" class="hint" role="status"></p>
+          <p class="hint">Counts all your replies today, including replies outside this watchlist. Original and quote posts are shown separately; reposts don't count. Reaching your goal silences nudges for the day.</p>
           <div class="settings-actions">
             <button id="enable-notifications" class="button">
               Enable browser notifications</button
@@ -181,10 +193,6 @@
             keeps monitoring even if you close the page. An ngrok link works
             only while your Mac and tunnel are running.
           </p>
-          <details>
-            <summary>See all 33 times</summary>
-            <ol id="schedule-times" class="schedule-times"></ol>
-          </details>
         </div>
         <div class="panel-footer">
           <span id="usage-summary"></span
@@ -229,12 +237,9 @@
         <button
           id="schedule-toggle"
           class="text-button"
-          aria-label="View reminder schedule"
+          aria-label="View daily reply progress"
         >
-          <span id="next-reminder">33 posts · 10:00–00:00</span></button
-        ><button id="mark-posted" class="button small" hidden>
-          I've posted
-        </button>
+          <span id="next-reminder">23 replies · daily goal</span></button>
       </div>
       <div class="bottom-actions">
         <button

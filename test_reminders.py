@@ -40,10 +40,12 @@ class ReminderStorageTests(unittest.TestCase):
     account = test_app.DeskTests.account
 
     def test_claim_once_no_catchup(self):
-        instant = datetime(2026,11,20,10,0,tzinfo=timezone.utc)
-        self.assertTrue(self.desk.claim_reminder("2026-11-20:1", instant))
-        self.assertFalse(self.desk.claim_reminder("2026-11-20:1", instant + timedelta(seconds=10)))
-        self.assertFalse(self.desk.claim_reminder("2026-11-20:2", instant))
+        instant = datetime(2026,11,20,10,26,tzinfo=timezone.utc)
+        self.desk.save_settings({"own_handle":"person", "enabled":True})
+        self.desk.execute("UPDATE activity_tracker SET last_success=?,user_id='123'", (instant.timestamp(),))
+        self.assertTrue(self.desk.claim_reminder("2026-11-20:2", instant))
+        self.assertFalse(self.desk.claim_reminder("2026-11-20:2", instant + timedelta(seconds=10)))
+        self.assertFalse(self.desk.claim_reminder("2026-11-20:3", instant))
         self.assertFalse(self.desk.claim_reminder("2026-11-19:1", instant))
 
     def test_disabled_reminders(self):

@@ -141,7 +141,7 @@ The green, error, and attention tokens are semantic exceptions: running/complete
 
 The UI stack is Inter followed by platform sans-serif fallbacks. No local or remote font asset is loaded; platform fallback rendering is expected. There is no decorative display or serif role.
 
-Titles use the title token. The centered monitoring message uses the lighter status role, reduced to (19px) on mobile. Source copy and draft editing have their own generous line heights. Labels use the compact label role; footer and secondary details use metadata, reduced to (12px) in the mobile footer. Reminder counts and schedule times use tabular numerals.
+Titles use the title token. The centered monitoring message uses the lighter status role, reduced to (19px) on mobile. Source copy and draft editing have their own generous line heights. Labels use the compact label role; footer and secondary details use metadata, reduced to (12px) in the mobile footer. Reply counts and progress numbers use tabular numerals.
 
 **The Quiet State Rule.** Let empty space carry the monitoring state; add explanatory text only when the user needs to act.
 
@@ -151,7 +151,7 @@ The single page has a horizontal account strip (86px tall), an open main field, 
 
 The empty state is centered inside a viewport-relative field, with minimum height `calc(100svh - 196px)`. The main element reserves bottom space (110px) for the footer. A populated inbox is a centered column (maximum 740px); its post selector scrolls horizontally above the source and editor. Same-page settings replace the main content while open, using a wider region (maximum 920px) and two columns separated by (54px).
 
-At widths up to (800px), the top strip becomes (76px) tall with (20px) gutters and the brand word is hidden. Account chips tighten; the expanded search anchors inside the top strip at its right edge. Main gutters become (20px), bottom clearance becomes (130px), and settings stack with (36px) between columns. The reminder summary stacks vertically, footer icon controls narrow, and the schedule changes from six columns to four. Footer padding includes `env(safe-area-inset-bottom)`.
+At widths up to (800px), the top strip becomes (76px) tall with (20px) gutters and the brand word is hidden. Account chips tighten; the expanded search anchors inside the top strip at its right edge. Main gutters become (20px), bottom clearance becomes (130px), and settings stack with (36px) between columns. The reminder summary stacks vertically, footer icon controls narrow, and the reply-tracking form remains within the viewport. Footer padding includes `env(safe-area-inset-bottom)`.
 
 ## Elevation & Depth
 
@@ -181,7 +181,7 @@ Fields use dark surfaces, restrained borders, visible labels or accessible hidde
 
 ### Navigation and Footer
 
-The watched-account strip provides source access. The fixed footer exposes monitoring on the left, the 33-reminder schedule in the center, and a notification icon and a labelled API keys action opening settings on the right. A due reminder adds a pale confirmation action. Monitoring labels and dots distinguish running, paused, offline, and attention states. Settings remain hidden until requested and open within this page.
+The watched-account strip provides source access. The fixed footer exposes monitoring on the left, daily reply progress and pace in the center, and a notification icon and a labelled API keys action opening settings on the right. The reply progress control opens the goal settings and automatic counts; no posting acknowledgement is required. Monitoring labels and dots distinguish running, paused, offline, and attention states. Settings remain hidden until requested and open within this page.
 
 ### Monitoring State
 

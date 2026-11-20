@@ -6,6 +6,7 @@ let state,
 let dirty = false,
   preferencesDirty = false,
   keysDirty = false,
+  activityDirty = false,
   busy = false;
 let editorSignature = "",
   postSignature = "",
@@ -84,7 +85,7 @@ function visiblePosts() {
       !p.demo &&
       (filter === "archived"
         ? p.status === "archived" || !!p.replied_at
-        : p.status !== "archived" && !p.replied_at),
+        : p.status !== "archived" && (!p.replied_at || (dirty && p.id === selectedId))),
   );
 }
 function sourceUrl(post) {
@@ -225,7 +226,7 @@ function render() {
   $("ai-key").placeholder = c.ai ? "Leave blank to keep saved key" : "Paste your OpenAI API key";
   $("usage-summary").textContent =
     `${state.usage.posts_read} post reads · ${state.usage.draft_attempts}/${s.daily_drafts} draft attempts · ${state.usage.transcription_attempts || 0}/${s.daily_drafts} audio transcriptions today (UTC)`;
-  $("check-now").disabled = state.busy || !accounts.length || !c.x;
+  $("check-now").disabled = state.busy || (!accounts.length && !state.schedule.progress.handle) || !c.x;
   $("account-errors").innerHTML = errors
     .map(
       (a) =>
@@ -277,7 +278,7 @@ function renderEditor() {
   }
   editorSignature = signature;
   $("editor").innerHTML =
-    `<div class="source-meta"><strong>@${escape(p.handle)}</strong><a href="${sourceUrl(p)}" target="_blank" rel="noopener noreferrer">${escape(dateLabel(p.created_at))} · View post</a></div><p class="source-text">${escape(p.text)}</p>${draftMessage(p) ? `<p class="editor-note" role="status">${escape(draftMessage(p))}</p>` : ""}${p.context_summary ? `<p class="editor-note">${escape(p.context_summary)}</p>` : ""}<div class="draft-tabs" role="group" aria-label="Draft type"><button class="draft-tab ${draftKind === "reply" ? "active" : ""}" data-kind="reply" aria-pressed="${draftKind === "reply"}">Reply</button><button class="draft-tab ${draftKind === "repurpose" ? "active" : ""}" data-kind="repurpose" aria-pressed="${draftKind === "repurpose"}">Your take</button></div><label for="draft-text" class="sr-only">Edit your draft</label><textarea id="draft-text" maxlength="2000" placeholder="Add something worth saying…">${escape(p[draftKind])}</textarea><div class="draft-details"><span>${draftKind === "repurpose" ? "Source link included when you open X." : "Review the wording. You publish in X."}</span><span id="character-count"></span></div><div class="editor-actions"><button id="open-composer" class="button">Open in X</button><button id="save-draft" class="button secondary">Save</button><button id="copy-draft" class="text-button">Copy</button><button id="generate-draft" class="text-button" ${!state.connections.ai || state.busy ? "disabled" : ""}>${p.reply || p.repurpose ? "Regenerate both" : "Generate drafts"}</button><button id="mark-replied" class="text-button">${p.replied_at ? "Undo replied" : "Mark replied"}</button><button id="archive-draft" class="text-button">${p.status === "archived" ? "Restore" : "Archive"}</button></div>${p.error && p.status === "ready" ? `<p class="editor-note">${escape(p.error)}</p>` : ""}`;
+    `<div class="source-meta"><strong>@${escape(p.handle)}</strong><a href="${sourceUrl(p)}" target="_blank" rel="noopener noreferrer">${escape(dateLabel(p.created_at))} · View post</a></div><p class="source-text">${escape(p.text)}</p>${draftMessage(p) ? `<p class="editor-note" role="status">${escape(draftMessage(p))}</p>` : ""}${p.context_summary ? `<p class="editor-note">${escape(p.context_summary)}</p>` : ""}<div class="draft-tabs" role="group" aria-label="Draft type"><button class="draft-tab ${draftKind === "reply" ? "active" : ""}" data-kind="reply" aria-pressed="${draftKind === "reply"}">Reply</button><button class="draft-tab ${draftKind === "repurpose" ? "active" : ""}" data-kind="repurpose" aria-pressed="${draftKind === "repurpose"}">Your take</button></div><label for="draft-text" class="sr-only">Edit your draft</label><textarea id="draft-text" maxlength="2000" placeholder="Add something worth saying…">${escape(p[draftKind])}</textarea><div class="draft-details"><span>${draftKind === "repurpose" ? "Source link included when you open X." : "Review the wording. You publish in X."}</span><span id="character-count"></span></div><div class="editor-actions"><button id="open-composer" class="button">Open in X</button><button id="save-draft" class="button secondary">Save</button><button id="copy-draft" class="text-button">Copy</button><button id="generate-draft" class="text-button" ${!state.connections.ai || state.busy ? "disabled" : ""}>${p.reply || p.repurpose ? "Regenerate both" : "Generate drafts"}</button>${p.detected_reply_id ? `<a class="text-button" href="https://x.com/i/status/${escape(p.detected_reply_id)}" target="_blank" rel="noopener noreferrer">Reply detected on X</a>` : `<button id="mark-replied" class="text-button">${p.replied_at ? "Undo replied" : "Mark replied manually"}</button>`}<button id="archive-draft" class="text-button">${p.status === "archived" ? "Restore" : "Archive"}</button></div>${p.error && p.status === "ready" ? `<p class="editor-note">${escape(p.error)}</p>` : ""}`;
   updateCount();
 }
 function updateCount() {
@@ -291,57 +292,52 @@ function updateCount() {
   $("copy-draft").disabled = !p[draftKind].trim();
   $("save-draft").textContent = dirty ? "Save changes" : "Save";
 }
+function progressLabel(progress) {
+  if (!progress.handle) return "Set up reply tracking";
+  const count = `${progress.replies}/${progress.goal} replies`;
+  if (progress.goal_met) return `${count} · Goal reached`;
+  if (progress.error) return `${count} · Tracking issue`;
+  if (!progress.monitoring) return `${count} · Tracking paused`;
+  if (progress.syncing) return `${count} · Syncing`;
+  if (!progress.fresh) return `${count} · Waiting for X`;
+  if (!progress.active_window) return `${count} · Nudges from 10:00`;
+  return `${count} · ${progress.behind ? `${progress.remaining} to go` : "On pace"}`;
+}
 function renderSchedule() {
   const schedule = state.schedule;
   if (!schedule) return;
-  const due = schedule.current,
-    age = due ? Date.now() - Date.parse(due.due_at) : Infinity;
-  const needsPost =
-    schedule.enabled && due && !due.completed && age >= 0 && age < 30 * 60000;
-  $("mark-posted").hidden = !needsPost;
-  $("next-reminder").textContent = !schedule.enabled
-    ? "Reminders paused"
-    : needsPost
-      ? `Time to post · ${due.number}/33`
-      : `Next ${schedule.next?.time || "10:00"} · 33/day · London`;
-  $("mark-posted")
-    .closest(".reminder-summary")
-    .classList.toggle("due", needsPost);
-  $("toggle-reminders").textContent = schedule.enabled
-    ? "Pause reminders"
-    : "Resume reminders";
-  const permission =
-    "Notification" in window ? Notification.permission : "unsupported";
-  $("enable-notifications").textContent =
-    permission === "granted"
-      ? "Notifications enabled"
-      : permission === "denied"
-        ? "Notifications blocked"
-        : "Enable browser notifications";
-  $("enable-notifications").disabled =
-    permission === "granted" || permission === "unsupported";
-  $("notification-toggle").setAttribute(
-    "aria-label",
-    permission === "granted"
-      ? "Notification settings"
-      : "Enable browser notifications",
-  );
-  $("notification-status").textContent =
-    permission === "granted"
-      ? "Browser permission granted. Reminders appear while this app is open."
-      : permission === "denied"
-        ? "Allow notifications for this address in your browser settings, then reload."
-        : permission === "unsupported"
-          ? "This browser cannot show notifications. Open this address in a supported browser such as Safari or Chrome."
-          : "Enable notifications once in this browser. You can also use the reminder displayed at the bottom.";
-  const times = schedule.slots
-    .map(
-      (slot) =>
-        `<li class="${slot.completed ? "completed" : ""}" title="Post ${slot.number} of 33${slot.completed ? " · marked posted" : ""}">${escape(slot.time)}${slot.completed ? " · done" : ""}</li>`,
-    )
-    .join("");
-  if ($("schedule-times").innerHTML !== times)
-    $("schedule-times").innerHTML = times;
+  const progress = schedule.progress;
+  $("next-reminder").textContent = progressLabel(progress);
+  $("next-reminder").closest(".reminder-summary").classList.toggle("due", schedule.needs_reply);
+  $("reply-progress-label").textContent = progressLabel(progress);
+  $("reply-progress").max = progress.goal;
+  $("reply-progress").value = Math.min(progress.replies, progress.goal);
+  $("reply-pace").textContent = progress.handle
+    ? `${progress.posts} total posts today · ${progress.other_posts} original or quote posts. ` +
+      (progress.goal_met ? "Daily goal reached. No more reply nudges today." :
+       `${progress.remaining} replies left · ${progress.expected} expected by now · ${progress.needed_per_hour}/hour needed by midnight.`)
+    : "Add your username to detect replies and mark matching inbox posts done automatically.";
+  const updated = progress.last_checked ? new Date(progress.last_checked * 1000).toLocaleTimeString("en-GB", {timeZone:"Europe/London",hour:"2-digit",minute:"2-digit"}) : "";
+  $("activity-status").textContent = progress.error || (!progress.handle ? "" :
+    !progress.monitoring ? "Monitoring is paused. Start it using the footer control." :
+    progress.syncing ? "Reading your activity from X. Counts may be incomplete; nudges wait until the check finishes." :
+    !progress.fresh ? "Waiting for a fresh check. Counts may be behind; nudges are paused." :
+    `@${progress.handle} · Last checked ${updated} London · Updates about every ${state.settings.interval} seconds.`);
+  if (!activityDirty && !$("activity-form").contains(document.activeElement)) {
+    $("own-handle").value = progress.handle;
+    $("reply-goal").value = progress.goal;
+  }
+  $("toggle-reminders").textContent = schedule.enabled ? "Pause nudges" : "Resume nudges";
+  const permission = "Notification" in window ? Notification.permission : "unsupported";
+  $("enable-notifications").textContent = permission === "granted" ? "Notifications enabled" :
+    permission === "denied" ? "Notifications blocked" : "Enable browser notifications";
+  $("enable-notifications").disabled = permission === "granted" || permission === "unsupported";
+  $("notification-toggle").setAttribute("aria-label", permission === "granted" ? "Notification settings" : "Enable browser notifications");
+  $("notification-status").textContent = !schedule.enabled ? "Reply nudges are paused. Tracking and daily counts continue." :
+    permission === "granted" ? "Nudges appear only when you're behind pace, while this app is open." :
+    permission === "denied" ? "Allow notifications for this address in your browser settings, then reload." :
+    permission === "unsupported" ? "This browser cannot show notifications. Open this address in Safari or Chrome." :
+    "Enable notifications to get a nudge when you're behind your reply goal.";
 }
 async function enableNotifications() {
   if ("Notification" in window && Notification.permission === "granted") {
@@ -368,18 +364,18 @@ async function enableNotifications() {
   renderSchedule();
   if (Notification.permission === "granted")
     toast(
-      "Notifications enabled. Keep this app open for your 33 daily reminders.",
+      "Notifications enabled. Keep this app open for progress-aware reply nudges.",
     );
 }
 async function maybeNotify() {
   const schedule = state?.schedule,
     slot = schedule?.current;
-  if (!schedule?.enabled || !slot || slot.completed) return;
+  if (!schedule?.needs_reply || !slot) return;
   const age = Date.now() - Date.parse(slot.due_at);
   if (age < 0 || age >= 300000) return;
   if (lastInAppReminder !== slot.id) {
     lastInAppReminder = slot.id;
-    toast(`Time to post · reminder ${slot.number} of 33`);
+    toast(`${schedule.progress.replies}/${schedule.progress.goal} replies · ${schedule.progress.remaining} left today`);
   }
   if (
     notifying ||
@@ -392,16 +388,16 @@ async function maybeNotify() {
     const result = await api("/api/reminders/claim", { id: slot.id });
     if (!result.claimed) return;
     const options = {
-      body: `Posting reminder ${slot.number} of 33. Open Draft Desk to find your next post.`,
+      body: `${schedule.progress.replies}/${schedule.progress.goal} replies today. ${schedule.progress.remaining} left to reach your goal by midnight.`,
       tag: `desk-${slot.id}`,
       icon: "/icon.svg",
       data: { url: "/" },
     };
     const registration = await serviceWorker;
     if (registration)
-      await registration.showNotification("Time to post", options);
+      await registration.showNotification("Time for a reply", options);
     else {
-      const notification = new Notification("Time to post", options);
+      const notification = new Notification("Time for a reply", options);
       notification.onclick = () => {
         window.focus();
         notification.close();
@@ -447,6 +443,7 @@ document.addEventListener("input", (event) => {
   }
   if (event.target.closest("#settings-form")) preferencesDirty = true;
   if (event.target.closest("#keys-form")) keysDirty = true;
+  if (event.target.closest("#activity-form")) activityDirty = true;
   if (event.target.id === "account-search") {
     searchRevision++;
     searchResult = null;
@@ -476,7 +473,12 @@ document.addEventListener("click", (event) => {
   if (id === "add-toggle") return setSearch($("search-form").hidden);
   if (id === "settings-toggle") return setSettings($("settings-panel").hidden);
   if (id === "close-settings") return setSettings(false);
-  if (id === "schedule-toggle") return setSettings(true);
+  if (id === "schedule-toggle") {
+    setSettings(true);
+    $("activity-title").scrollIntoView({ block: "start" });
+    $("activity-title").focus({ preventScroll: true });
+    return;
+  }
   if (id === "enable-notifications" || id === "notification-toggle")
     return enableNotifications().catch((error) => toast(error.message, true));
   if (id === "watch-result")
@@ -488,7 +490,7 @@ document.addEventListener("click", (event) => {
     }, button);
   if (id === "toggle-monitor")
     return action(async () => {
-      if (!state.accounts.length) {
+      if (!state.accounts.length && !state.schedule.progress.handle) {
         setSearch(true);
         toast("Add an account to start monitoring.");
         return;
@@ -503,11 +505,6 @@ document.addEventListener("click", (event) => {
         }),
       button,
     );
-  if (id === "mark-posted")
-    return action(async () => {
-      await api("/api/reminders/complete", { id: state.schedule.current.id });
-      toast("Marked posted. Your next reminder is on the way.");
-    }, button);
   if (id === "check-now")
     return action(async () => {
       await api("/api/check", {});
@@ -574,7 +571,7 @@ document.addEventListener("click", (event) => {
     );
     action(async () => {
       await saveDraft();
-      toast(draftKind === "reply" ? "Finish in X, then use “Mark replied” on this post." : "Finish in X, then use “I’ve posted” when you’re done.");
+      toast(state.schedule.progress.handle ? "Finish in X. Your next activity check will pick up the post automatically." : "Finish in X. Add your username in Settings to track posts automatically.");
     });
   }
 });
@@ -643,8 +640,17 @@ $("settings-form").addEventListener("submit", (event) => {
     );
   });
 });
+$("activity-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  action(async () => {
+    const values = {own_handle: $("own-handle").value.trim(), reply_goal: Number($("reply-goal").value)};
+    await api("/api/settings", values);
+    activityDirty = $("own-handle").value.trim() !== values.own_handle || Number($("reply-goal").value) !== values.reply_goal;
+    toast(values.own_handle ? "Reply tracking saved. Your next check will read your activity." : "Reply tracking turned off.");
+  });
+});
 window.addEventListener("beforeunload", (event) => {
-  if (dirty || preferencesDirty || keysDirty) {
+  if (dirty || preferencesDirty || keysDirty || activityDirty) {
     event.preventDefault();
     event.returnValue = "";
   }

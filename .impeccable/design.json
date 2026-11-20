@@ -293,8 +293,8 @@
       "name": "Footer navigation",
       "kind": "nav",
       "refersTo": "footer",
-      "description": "Persistent monitoring and reminder access.",
-      "html": "<nav class=\"ds-footer\" aria-label=\"Desk controls\"><button class=\"ds-monitor\"><span></span>Monitoring</button><button>33 reminders \u00b7 10:00\u201300:00</button></nav>",
+      "description": "Persistent monitoring and daily reply progress.",
+      "html": "<nav class=\"ds-footer\" aria-label=\"Desk controls\"><button class=\"ds-monitor\"><span></span>Monitoring</button><button>23 replies \u00b7 daily goal</button></nav>",
       "css": ".ds-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:76px;padding:14px 36px;border-top:1px solid var(--line,#282828);background:var(--bg,#080808)}.ds-footer button{display:flex;align-items:center;gap:9px;background:none;border:0;color:var(--muted,#969696);font:13px/1.5 Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;padding:10px 0;cursor:pointer;font-variant-numeric:tabular-nums}.ds-monitor span{width:6px;height:6px;border-radius:50%;background:var(--green,#92d8a3)}.ds-footer button:hover{color:white}.ds-footer button:focus-visible{outline:2px solid var(--focus,#ddd);outline-offset:4px}"
     }
   ],

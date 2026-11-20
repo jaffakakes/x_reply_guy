@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
-from reminders import schedule_at, slot_by_id
+from reminders import schedule_at, slot_by_id, day_window, reply_pace
 from post_context import POST_PARAMS, build_context, image_url, post_text
 from video_context import read_video, request_transcription, TRANSCRIBE_MODEL
 
@@ -103,6 +103,15 @@ class Desk:
             slot_id TEXT PRIMARY KEY, delivered_at TEXT, completed_at TEXT);
           CREATE TABLE IF NOT EXISTS transcripts (
             audio_hash TEXT PRIMARY KEY, text TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS activity_tracker (
+            id INTEGER PRIMARY KEY CHECK(id=1), handle TEXT NOT NULL DEFAULT '', user_id TEXT,
+            start_time TEXT, since_id TEXT, next_token TEXT, newest_id TEXT,
+            last_attempt REAL DEFAULT 0, last_success REAL DEFAULT 0,
+            retry_at REAL DEFAULT 0, error TEXT DEFAULT '', revision INTEGER DEFAULT 0);
+          INSERT OR IGNORE INTO activity_tracker(id) VALUES (1);
+          CREATE TABLE IF NOT EXISTS activity_posts (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL, parent_id TEXT);
+          CREATE INDEX IF NOT EXISTS activity_by_user_time ON activity_posts(user_id,created_at);
         """)
         if "transcription_attempts" not in {r[1] for r in self.db.execute("PRAGMA table_info(usage)")}:
             self.db.execute("ALTER TABLE usage ADD COLUMN transcription_attempts INTEGER NOT NULL DEFAULT 0")
@@ -111,6 +120,8 @@ class Desk:
             self.db.execute("ALTER TABLE accounts ADD COLUMN latest_seeded INTEGER NOT NULL DEFAULT 0")
         if "replied_at" not in {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}:
             self.db.execute("ALTER TABLE posts ADD COLUMN replied_at TEXT")
+        if "detected_reply_id" not in {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}:
+            self.db.execute("ALTER TABLE posts ADD COLUMN detected_reply_id TEXT")
         for name, definition in (("source_json", "TEXT"), ("context_summary", "TEXT NOT NULL DEFAULT ''")):
             if name not in {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}:
                 self.db.execute(f"ALTER TABLE posts ADD COLUMN {name} {definition}")
@@ -134,6 +145,7 @@ class Desk:
     def settings(self):
         settings = json.loads(self.rows("SELECT value FROM settings WHERE id=1")[0]["value"])
         settings.setdefault("reminders_enabled", True)
+        settings.setdefault("reply_goal", 23)
         return settings
 
     def save_settings(self, changes):
@@ -144,7 +156,7 @@ class Desk:
                     if not isinstance(changes[field], bool):
                         raise ValueError(f"{field} must be true or false.")
                     settings[field] = changes[field]
-            for field, low, high in (("interval", 60, 3600), ("daily_reads", 5, 10000), ("daily_drafts", 1, 500)):
+            for field, low, high in (("interval", 60, 3600), ("daily_reads", 5, 10000), ("daily_drafts", 1, 500), ("reply_goal", 1, 500)):
                 if field in changes:
                     value = changes[field]
                     if type(value) is not int or not low <= value <= high:
@@ -157,6 +169,17 @@ class Desk:
                     settings[field] = changes[field].strip()
             if settings["enabled"] and not self.keys.get("X_BEARER_TOKEN"):
                 raise ValueError("Connect your X API bearer token in Settings first.")
+            if "own_handle" in changes:
+                value = changes["own_handle"]
+                if not isinstance(value, str):
+                    raise ValueError("Your X username must be text.")
+                handle = self.normalize_handle(value) if value.strip() else ""
+                tracker = self.rows("SELECT * FROM activity_tracker WHERE id=1")[0]
+                if handle != tracker["handle"]:
+                    start, _ = day_window()
+                    self.execute("""UPDATE activity_tracker SET handle=?,user_id=NULL,start_time=?,since_id=NULL,
+                        next_token=NULL,newest_id=NULL,last_attempt=0,last_success=0,retry_at=0,error='',revision=revision+1 WHERE id=1""",
+                        (handle, start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")))
             self.execute("UPDATE settings SET value=? WHERE id=1", (json.dumps(settings),))
             self.wake.set()
 
@@ -177,6 +200,7 @@ class Desk:
             temporary.replace(self.env_path)
             self.keys = updated
             self.execute("UPDATE accounts SET retry_at=0, error=''")
+            self.execute("UPDATE activity_tracker SET retry_at=0,error='',last_attempt=0")
 
     @staticmethod
     def normalize_handle(handle):
@@ -222,33 +246,138 @@ class Desk:
             self.execute("INSERT INTO accounts(handle,user_id,start_time,profile_image_url) VALUES (?,?,?,?)", (handle, user_id, now(), photo))
         self.wake.set()
 
+    def activity_progress(self, instant=None):
+        instant = instant or datetime.now(timezone.utc)
+        tracker = self.rows("SELECT * FROM activity_tracker WHERE id=1")[0]
+        start, end = day_window(instant)
+        bounds = [d.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z") for d in (start, end)]
+        counts = self.rows("""SELECT COUNT(*) AS posts,COUNT(parent_id) AS replies FROM activity_posts
+            WHERE user_id=? AND created_at>=? AND created_at<?""", (tracker["user_id"], *bounds))[0]
+        settings = self.settings()
+        progress = reply_pace(counts["replies"], settings["reply_goal"], instant)
+        fresh = (bool(tracker["last_success"]) and not tracker["next_token"] and not tracker["error"]
+                 and 0 <= instant.timestamp() - tracker["last_success"] <= max(180, settings["interval"] * 2))
+        progress.update(handle=tracker["handle"], posts=counts["posts"],
+                        other_posts=counts["posts"] - counts["replies"], fresh=fresh,
+                        error=tracker["error"], syncing=bool(tracker["next_token"]) or not tracker["last_success"],
+                        last_checked=tracker["last_success"], monitoring=settings["enabled"])
+        return progress
+
     def reminder_schedule(self, instant=None):
+        instant = instant or datetime.now(timezone.utc)
         schedule = schedule_at(instant)
-        records = {r["slot_id"]: r for r in self.rows("SELECT * FROM reminders WHERE slot_id LIKE ?", (schedule["day"] + ":%",))}
-        for slot in schedule["slots"]:
-            slot["completed"] = bool(records.get(slot["id"], {}).get("completed_at"))
-        schedule["completed"] = sum(s["completed"] for s in schedule["slots"])
-        schedule["enabled"] = self.settings()["reminders_enabled"]
+        progress = self.activity_progress(instant)
+        schedule.update(progress=progress, enabled=self.settings()["reminders_enabled"])
+        schedule["needs_reply"] = bool(schedule["enabled"] and progress["handle"] and progress["fresh"]
+            and progress["monitoring"] and progress["active_window"] and progress["behind"] and not progress["goal_met"])
         return schedule
 
     def claim_reminder(self, slot_id, instant=None):
         instant = instant or datetime.now(timezone.utc)
         slot = slot_by_id(slot_id)
         age = (instant - datetime.fromisoformat(slot["due_at"])).total_seconds()
-        if not self.settings()["reminders_enabled"] or not 0 <= age < 300:
-            return False
         with self.lock, self.db:
+            schedule = self.reminder_schedule(instant)
+            if not schedule["needs_reply"] or slot_id != (schedule["current"] or {}).get("id") or not 0 <= age < 300:
+                return False
             self.db.execute("INSERT OR IGNORE INTO reminders(slot_id) VALUES (?)", (slot["id"],))
             return bool(self.db.execute("UPDATE reminders SET delivered_at=? WHERE slot_id=? AND delivered_at IS NULL AND completed_at IS NULL",
                                        (now(), slot["id"])).rowcount)
 
-    def complete_reminder(self, slot_id):
-        slot = slot_by_id(slot_id)
-        age = (datetime.now(timezone.utc) - datetime.fromisoformat(slot["due_at"])).total_seconds()
-        if not 0 <= age < 86400 * 2:
-            raise ValueError("Only a reminder that is due can be marked posted.")
-        self.execute("INSERT INTO reminders(slot_id,completed_at) VALUES (?,?) ON CONFLICT(slot_id) DO UPDATE SET completed_at=excluded.completed_at",
-                     (slot["id"], now()))
+    def match_detected_replies(self, user_id):
+        if not user_id:
+            return
+        # Match the direct parent, never the conversation's root or a quoted post.
+        self.execute("""UPDATE posts SET
+            replied_at=COALESCE(replied_at,(SELECT MIN(a.created_at) FROM activity_posts a WHERE a.user_id=? AND a.parent_id=posts.id)),
+            detected_reply_id=(SELECT a.id FROM activity_posts a WHERE a.user_id=? AND a.parent_id=posts.id ORDER BY a.created_at,a.id LIMIT 1)
+            WHERE detected_reply_id IS NULL AND EXISTS (SELECT 1 FROM activity_posts a WHERE a.user_id=? AND a.parent_id=posts.id)""",
+            (user_id, user_id, user_id))
+
+    def poll_activity(self, force=False):
+        tracker = self.rows("SELECT * FROM activity_tracker WHERE id=1")[0]
+        settings = self.settings()
+        if not tracker["handle"] or not self.keys.get("X_BEARER_TOKEN") or tracker["retry_at"] > time.time():
+            return
+        if not force and not tracker["next_token"] and time.time() - tracker["last_attempt"] < settings["interval"]:
+            return
+        revision = tracker["revision"]
+        try:
+            if not tracker["user_id"]:
+                result = self.transport("https://api.x.com/2/users/by/username/" + tracker["handle"], self.keys["X_BEARER_TOKEN"])
+                user_id = str(result.get("data", {}).get("id", ""))
+                if not re.fullmatch(r"\d{1,25}", user_id):
+                    raise ServiceError("X could not find your account. Check your username.")
+                tracker["user_id"] = user_id
+                if not self.execute("UPDATE activity_tracker SET user_id=? WHERE id=1 AND revision=?", (user_id, revision)):
+                    return
+            with self.lock:
+                usage = self.usage()
+                # Expanded reply/quote references can add up to three posts per result.
+                slots = min(25, (settings["daily_reads"] - usage["read_slots"]) // 4)
+                if slots < 5:
+                    raise ServiceError("Daily read allowance reached. Reply counts may be incomplete; reminders are paused until tracking resumes.")
+                day = usage["day"]
+                self.execute("UPDATE usage SET read_slots=read_slots+? WHERE day=?", (slots * 4, day))
+            params = {"max_results": slots, "exclude": "retweets", "post.fields": "created_at", "expansions": "referenced_posts"}
+            if tracker["since_id"]:
+                params["since_id"] = tracker["since_id"]
+            else:
+                params["start_time"] = tracker["start_time"]
+            if tracker["next_token"]:
+                params["pagination_token"] = tracker["next_token"]
+            result = self.transport(f"https://api.x.com/2/users/{tracker['user_id']}/tweets?" + urlencode(params), self.keys["X_BEARER_TOKEN"])
+            if result.get("errors") or result.get("error"):
+                raise ValueError("Incomplete response")
+            posts = result.get("data", [])
+            included = result.get("includes", {}).get("posts", result.get("includes", {}).get("tweets", []))
+            if not isinstance(posts, list) or len(posts) > slots or not isinstance(included, list):
+                raise ValueError("Invalid timeline")
+            records = []
+            for post in posts:
+                pid = str(post.get("id", ""))
+                if not re.fullmatch(r"\d{1,25}", pid):
+                    raise ValueError("Invalid post ID")
+                created = datetime.fromisoformat(post["created_at"])
+                if created.tzinfo is None:
+                    raise ValueError("Missing timezone")
+                refs = post.get("referenced_posts", post.get("referenced_tweets", []))
+                if not isinstance(refs, list):
+                    raise ValueError("Missing references")
+                parent = None
+                repost = False
+                for ref in refs:
+                    if ref["type"] not in ("replied_to", "quoted", "retweeted") or not re.fullmatch(r"\d{1,25}", str(ref["id"])):
+                        raise ValueError("Invalid reference")
+                    if ref["type"] == "replied_to":
+                        parent = str(ref["id"])
+                    repost |= ref["type"] == "retweeted"
+                if post.get("in_reply_to_user_id") and not parent:
+                    raise ValueError("Reply parent missing")
+                if not repost:
+                    records.append((pid, tracker["user_id"], created.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), parent))
+            newest = tracker["newest_id"] or tracker["since_id"]
+            if posts:
+                newest = str(max([int(p["id"]) for p in posts] + ([int(newest)] if newest else [])))
+            next_token = result.get("meta", {}).get("next_token")
+            if next_token is not None and (not isinstance(next_token, str) or not next_token or next_token == tracker["next_token"]):
+                raise ValueError("Invalid pagination")
+            charged = len(posts) + len(included)
+            with self.lock, self.db:
+                self.db.execute("UPDATE usage SET read_slots=read_slots-?,posts_read=posts_read+? WHERE day=?", (slots * 4 - charged, charged, day))
+                if self.rows("SELECT revision FROM activity_tracker WHERE id=1")[0]["revision"] != revision:
+                    return
+                self.db.executemany("INSERT OR IGNORE INTO activity_posts VALUES (?,?,?,?)", records)
+                self.db.execute("""UPDATE activity_tracker SET next_token=?,newest_id=?,since_id=?,last_attempt=?,
+                    last_success=?,error='',retry_at=0 WHERE id=1""",
+                    (next_token, newest if next_token else None, tracker["since_id"] if next_token else newest,
+                     time.time(), tracker["last_success"] if next_token else time.time()))
+                self.match_detected_replies(tracker["user_id"])
+        except (ServiceError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            message = str(exc) if isinstance(exc, ServiceError) else "X returned incomplete reply activity. The cursor was kept; retrying shortly."
+            retry = getattr(exc, "retry_at", 0) or time.time() + 60
+            self.execute("UPDATE activity_tracker SET error=?,retry_at=?,last_attempt=? WHERE id=1 AND revision=?",
+                         (message, retry, time.time(), revision))
 
     def usage(self):
         day = now()[:10]
@@ -459,6 +588,7 @@ class Desk:
             settings = self.settings()
             if not self.keys.get("X_BEARER_TOKEN"):
                 return
+            self.poll_activity(force)
             for account in self.rows("SELECT * FROM accounts ORDER BY last_checked,handle"):
                 if not force and not self.settings()["enabled"]:
                     break
@@ -466,6 +596,7 @@ class Desk:
                     continue
                 if force or account["next_token"] or time.time() - account["last_checked"] >= settings["interval"]:
                     self.poll_account(account)
+            self.match_detected_replies(self.rows("SELECT user_id FROM activity_tracker WHERE id=1")[0]["user_id"])
             if self.settings()["auto_draft"] and self.keys.get("OPENAI_API_KEY") and (force or self.settings()["enabled"]):
                 pending = self.rows("SELECT id FROM posts WHERE status='new' AND demo=0 AND replied_at IS NULL ORDER BY created_at DESC LIMIT 1")
                 if pending and self.usage()["draft_attempts"] < self.settings()["daily_drafts"]:
@@ -488,6 +619,7 @@ class Desk:
                 except Exception:
                     # A malformed upstream response must not silently kill monitoring.
                     self.execute("UPDATE accounts SET error='Unexpected monitoring error. Pause, check your settings and retry.',retry_at=?", (time.time() + 300,))
+                    self.execute("UPDATE activity_tracker SET error='Tracking interrupted. Use Check now to retry.',retry_at=?", (time.time() + 60,))
 
     def demo(self):
         samples = [
@@ -619,8 +751,6 @@ def make_handler(desk):
                     desk.execute("DELETE FROM posts WHERE demo=1")
                 elif path == "/api/reminders/claim":
                     return self.send(200, {"claimed": desk.claim_reminder(body.get("id"))})
-                elif path == "/api/reminders/complete":
-                    desk.complete_reminder(body.get("id"))
                 elif path == "/api/draft":
                     if not desk.work_lock.acquire(blocking=False):
                         raise ValueError("The monitor is busy. Try again in a moment.")
@@ -635,6 +765,8 @@ def make_handler(desk):
                     if "replied" in body:
                         if type(body["replied"]) is not bool:
                             raise ValueError("Reply status must be true or false.")
+                        if desk.rows("SELECT detected_reply_id FROM posts WHERE id=?", (pid,))[0]["detected_reply_id"]:
+                            raise ValueError("This reply was detected on X and is already done.")
                         desk.execute("UPDATE posts SET replied_at=? WHERE id=?", (now() if body["replied"] else None, pid))
                     elif "status" in body:
                         if body["status"] not in ("archived", "ready", "new"):

@@ -128,3 +128,30 @@ test("queued drafts explain disabled generation and exhausted allowance", () => 
   h.run("state.settings.auto_draft=true;state.usage.draft_attempts=30");
   assert.match(h.run("draftMessage({status:'new'})"), /Daily draft allowance reached/);
 });
+
+test("an automatically detected reply keeps unsaved edits visible until saved", () => {
+  const h = harness();
+  h.run("state.posts[0].replied_at='2026-11-20T12:00:00Z'; state.posts[0].detected_reply_id='202'");
+  assert.equal(h.run("visiblePosts().length"), 1);
+  h.run("dirty=false");
+  assert.equal(h.run("visiblePosts().length"), 0);
+});
+
+test("reply progress distinguishes goal reached, behind pace and tracking failures", () => {
+  const h=harness();
+  h.run("p={handle:'person',replies:30,goal:23,goal_met:true,error:'',monitoring:true,syncing:false,fresh:true,active_window:true,behind:false,remaining:0}");
+  assert.match(h.run("progressLabel(p)"), /30\/23 replies.*Goal reached/);
+  h.run("p.replies=5;p.goal_met=false;p.behind=true;p.remaining=18");
+  assert.match(h.run("progressLabel(p)"), /18 to go/);
+  h.run("p.error='Rate limited'");
+  assert.match(h.run("progressLabel(p)"), /Tracking issue/);
+  h.run("p.error='';p.fresh=false");
+  assert.match(h.run("progressLabel(p)"), /Waiting for X/);
+});
+
+test("notification checks stop when the daily goal is met", async () => {
+  const h=harness();
+  h.run("state.schedule={enabled:true,needs_reply:false,current:{id:'today:6',due_at:new Date().toISOString()},progress:{goal_met:true,replies:30,goal:23}}; api=()=>{throw Error('Should not claim a reminder')}");
+  await h.run("maybeNotify()");
+  assert.equal(h.run("lastInAppReminder"), "");
+});
